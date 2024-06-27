@@ -1,6 +1,15 @@
-const blogRouter = require('./src/router/blogRouter')
-const userRouter = require('./src/router/userRouter')
+const handleblogRouter = require('./src/router/blogRouter')
+const handleUserRouter = require('./src/router/userRouter')
 const queryString = require('querystring')
+const { get, set } = require('./src/db/redis')
+
+
+
+const getCookieExpires = () => {
+    const d = new Date();
+    d.setTime(d.getTime() + (24 * 60 * 60 * 1000));
+    return d.toGMTString();
+}
 
 const getPostData = (req) => {
     return new Promise((resolve, reject) => {
@@ -40,18 +49,56 @@ const serverHandle = (req, res) => {
     req.query = queryString.parse(url.split('?')[1])
     req.path = url.split('?')[0]
 
-    getPostData(req).then(postData => {
-        req.body = postData
+    // 解析cookie
+    req.cookie = {}
+    const cookieStr = req.headers.cookie || '';
+    cookieStr.split(';').forEach(element => {
+        if (!element) {
+            return;
+        }
+        const arr = element.split('=');
+        const key = arr[0].trim();
+        const value = arr[1].trim();
+        req.cookie[key] = value;
+    });
 
-        let blogData = blogRouter(req, res)
-        if (blogData) {
-            res.end(JSON.stringify(blogData))
+    let needSetCookie = false;
+    let userId = req.cookie.userid;
+    if (!userId) {
+        needSetCookie = true;
+        userId = `${Date.now()}_${Math.floor(Math.random() * 10)}`;
+        set(userId, {})
+    }
+    req.sessionId = userId;
+    get(req.sessionId).then(data => {
+        if (!data) {
+            set(req.sessionId, {})
+            req.session = {};
+        } else {
+            req.session = data;
+        }
+        return getPostData(req);
+    }).then(postData => {
+        req.body = postData
+        let blogResult = handleblogRouter(req, res);
+        if (blogResult) {
+            if (needSetCookie) {
+                res.setHeader('Set-Cookie', `userid=${userId}; path=/; httpOnly; expires=${getCookieExpires()}`)
+            }
+            blogResult.then((data) => {
+                res.end(JSON.stringify(data))
+            })
             return;
         }
 
-        let userData = userRouter(req, res)
-        if (userData) {
-            res.end(JSON.stringify(userData))
+        let userResult = handleUserRouter(req, res)
+        if (userResult) {
+            if (needSetCookie) {
+                res.setHeader('Set-Cookie', `userid=${userId}; path=/; httpOnly; expires=${getCookieExpires()}`)
+            }
+            userResult.then((data) => {
+                res.end(JSON.stringify(data))
+            })
             return;
         }
 
