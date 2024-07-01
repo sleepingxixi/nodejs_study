@@ -1,0 +1,11 @@
+{
+    "apps" : [{
+      "name"       : "api-app",
+      "script"     : "./app.js",
+      "instances"  : 4,
+      "exec_mode"  : "cluster",
+      "error_file": "logs/err.log",
+      "out_file": "logs/out.log",
+      "log_date_format": "YYYY-MM-DD HH:mm:ss"
+    }]
+  }

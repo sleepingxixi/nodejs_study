@@ -2,6 +2,7 @@ const handleblogRouter = require('./src/router/blogRouter')
 const handleUserRouter = require('./src/router/userRouter')
 const queryString = require('querystring')
 const { get, set } = require('./src/db/redis')
+const { access } = require('./src/utils/log')
 
 
 
@@ -38,6 +39,9 @@ const getPostData = (req) => {
 }
 
 const serverHandle = (req, res) => {
+    // 记录access日志
+    access(`${req.method} -- ${req.url} -- ${req.headers['user-agent']}`);
+
     res.setHeader('Content-type', 'application/json');
     // const resData = {
     //     name: 'liping123',

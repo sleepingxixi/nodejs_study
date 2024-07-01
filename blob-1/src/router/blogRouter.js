@@ -1,7 +1,7 @@
 const { SuccessModel, ErrorModel } = require('../model/resModel')
 const { getList, getDetail, createBlog, updateBlog, deleteBlog } = require('../controller/blog')
 
-const loginCheck = () => {
+const loginCheck = (req) => {
     if (!req.session.username) {
         return Promise.resolve(new ErrorModel('登录失败'))
     }
@@ -12,10 +12,16 @@ const handleblogRouter = (req, res) => {
     const path = req.path;
 
     if (method === 'GET' && path === '/api/blog/list') {
-        const author = req.query.author;
+        let author = req.query.author || '';
         const keyword = req.query.keyword;
-        // const data = getList(author, keyword)
-        // return new SuccessModel(data)
+        const checkResult = loginCheck(req);
+        if (req.query.isadmin) {
+            if (checkResult) {
+                return checkResult;
+            }
+            author = req.session.username;
+        }
+
         return getList(author, keyword).then((data) => {
             return new SuccessModel(data)
         })
@@ -27,9 +33,9 @@ const handleblogRouter = (req, res) => {
         })
     }
     if (method === 'POST' && path === '/api/blog/new') {
-        const checkResult = loginCheck();
+        const checkResult = loginCheck(req);
         if (checkResult) {
-            return loginCheck;
+            return checkResult;
         }
         req.body.author = req.session.username;
         return createBlog(req.body).then(data => {
@@ -38,9 +44,9 @@ const handleblogRouter = (req, res) => {
 
     }
     if (method === 'POST' && path === '/api/blog/update') {
-        const checkResult = loginCheck();
+        const checkResult = loginCheck(req);
         if (checkResult) {
-            return loginCheck;
+            return checkResult;
         }
         const id = req.query.id;
         return updateBlog(id, req.body).then(data => {
@@ -49,9 +55,9 @@ const handleblogRouter = (req, res) => {
 
     }
     if (method === 'POST' && path === '/api/blog/del') {
-        const checkResult = loginCheck();
+        const checkResult = loginCheck(req);
         if (checkResult) {
-            return loginCheck;
+            return checkResult;
         }
         const id = req.query.id;
         return deleteBlog(id, req.session.username).then(data => {
